@@ -88,3 +88,172 @@ exio |>
   head(n = 5) |>
   collect()
 ```
+
+## Exercise 3: CO2 Production Analysis
+
+### Top 20 CO2 Emitters by Region (2022)
+
+```{r}
+# Query top 20 regions by CO2 emissions in 2022
+exio |>
+  filter(
+    year == 2022,
+    matrix == "F_satellite",
+    stressor %like% "%CO2%"
+  ) |>
+  group_by(region) |>
+  summarise(
+    total_co2 = sum(value, na.rm = TRUE),
+    unit = first(unit),
+    .groups = "drop"
+  ) |>
+  arrange(desc(total_co2)) |>
+  head(n = 20) |>
+  collect()
+```
+
+### Top 10 CO2 Emitting Sectors Globally (2022)
+
+```{r}
+# Query top 10 sectors by CO2 emissions globally in 2022
+exio |>
+  filter(
+    year == 2022,
+    matrix == "F_satellite",
+    stressor %like% "%CO2%"
+  ) |>
+  group_by(sector) |>
+  summarise(
+    total_co2 = sum(value, na.rm = TRUE),
+    unit = first(unit),
+    .groups = "drop"
+  ) |>
+  arrange(desc(total_co2)) |>
+  head(n = 10) |>
+  collect()
+```
+
+### CO2 Emissions Trend by Selected Regions (1995-2022)
+
+```{r}
+# Time series of CO2 emissions for major emitters
+exio |>
+  filter(
+    region %in% c("CN", "US", "IN", "RU", "JP", "DE"),
+    matrix == "F_satellite",
+    stressor %like% "%CO2%"
+  ) |>
+  group_by(year, region) |>
+  summarise(
+    total_co2 = sum(value, na.rm = TRUE),
+    unit = first(unit),
+    .groups = "drop"
+  ) |>
+  arrange(region, year) |>
+  collect()
+```
+
+## Exercise 4: Visualizing Top 5 CO2 Emitters Over Time
+
+```{r}
+# Install ggplot2 if needed
+# install.packages("ggplot2")
+library(ggplot2)
+
+# Step 1: Identify top 5 emitters in 2022
+top5_emitters <- exio |>
+  filter(
+    year == 2022,
+    matrix == "F_satellite",
+    stressor %like% "%CO2%"
+  ) |>
+  group_by(region) |>
+  summarise(total_co2 = sum(value, na.rm = TRUE)) |>
+  arrange(desc(total_co2)) |>
+  head(n = 5) |>
+  collect()
+
+# Get the region codes
+top5_regions <- top5_emitters$region
+
+# Step 2: Get time series data for these top 5
+co2_timeseries <- exio |>
+  filter(
+    region %in% top5_regions,
+    matrix == "F_satellite",
+    stressor %like% "%CO2%"
+  ) |>
+  group_by(year, region) |>
+  summarise(
+    total_co2 = sum(value, na.rm = TRUE),
+    unit = first(unit),
+    .groups = "drop"
+  ) |>
+  collect()
+
+# Step 3: Create and display the plot
+p <- ggplot(co2_timeseries, aes(x = year, y = total_co2, color = region, group = region)) +
+  geom_line(linewidth = 1.2) +
+  geom_point(size = 2) +
+  labs(
+    title = "CO2 Emissions by Top 5 Emitters (1995-2022)",
+    x = "Year",
+    y = paste0("Total CO2 Emissions (", co2_timeseries$unit[1], ")"),
+    color = "Region"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    legend.position = "bottom"
+  ) +
+  scale_x_continuous(breaks = seq(1995, 2022, by = 5))
+
+# Display the plot
+print(p)
+
+# 保存图片到文件
+ggsave("co2_emissions_plot.png", plot = p, width = 10, height = 6, dpi = 300)
+```
+
+## Exercise 5: Top CO2 Emitting Sectors in China (2022)
+
+```{r}
+# Get top 10 CO2 emitting sectors in China for 2022
+china_co2 <- exio |>
+  filter(
+    year == 2022,
+    region == "CN",
+    matrix == "F_satellite",
+    stressor %like% "%CO2%"
+  ) |>
+  group_by(sector) |>
+  summarise(
+    total_co2 = sum(value, na.rm = TRUE),
+    unit = first(unit),
+    .groups = "drop"
+  ) |>
+  arrange(desc(total_co2)) |>
+  head(n = 10) |>
+  collect()
+
+# Create bar plot
+p_china <- ggplot(china_co2, aes(x = reorder(sector, total_co2), y = total_co2)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  coord_flip() +
+  labs(
+    title = "Top 10 CO2 Emitting Sectors in China (2022)",
+    x = "Sector",
+    y = paste0("Total CO2 Emissions (", china_co2$unit[1], ")")
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    axis.text.y = element_text(size = 9)
+  )
+
+# Display the plot
+print(p_china)
+
+# Save plot
+ggsave("china_co2_sectors_2022.png", plot = p_china, width = 10, height = 8, dpi = 300)
+```

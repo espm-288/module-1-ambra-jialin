@@ -1,0 +1,65 @@
+---
+title: "EXIOBASE Data Structure Exploration"
+author: "Jialin"
+format: html
+---
+
+## Setup
+
+```{r}
+library(duckdbfs)
+library(dplyr)
+
+# Configure S3 access
+duckdbfs::duckdb_secrets(
+    key = "",
+    secret = "",
+    endpoint = "s3.amazonaws.com",
+    region = "us-west-2"
+)
+
+# Open dataset
+s3_url <- "s3://us-west-2.opendata.source.coop/youssef-harby/exiobase-3/4588235/parquet/**"
+exio <- open_dataset(s3_url)
+```
+
+## Data Structure Overview
+
+```{r}
+# 1. Column names and types
+cat("=== COLUMNS AND TYPES ===\n")
+glimpse(exio)
+
+# 2. Matrix types
+cat("\n=== MATRIX TYPES ===\n")
+exio |> distinct(matrix) |> collect() |> print()
+
+# 3. Regions
+cat("\n=== REGIONS (sample of 20) ===\n")
+exio |> distinct(region) |> head(20) |> collect() |> print()
+
+cat("\n=== TOTAL NUMBER OF REGIONS ===\n")
+exio |> summarise(n_regions = n_distinct(region)) |> collect() |> print()
+
+# 4. Year range
+cat("\n=== YEAR RANGE ===\n")
+exio |> summarise(min_year = min(year), max_year = max(year)) |> collect() |> print()
+
+# 5. Sectors
+cat("\n=== SECTORS (sample of 15) ===\n")
+exio |> filter(!is.na(sector)) |> distinct(sector) |> head(15) |> collect() |> print()
+
+# 6. Environmental stressors
+cat("\n=== ENVIRONMENTAL STRESSORS (sample of 20) ===\n")
+exio |> filter(matrix == "F_satellite") |> distinct(stressor) |> head(20) |> collect() |> print()
+
+# 7. Sample data from each matrix
+cat("\n=== SAMPLE DATA: Z MATRIX (Economic Transactions) ===\n")
+exio |> filter(matrix == "Z", year == 2022) |> head(3) |> collect() |> print()
+
+cat("\n=== SAMPLE DATA: Y MATRIX (Final Demand) ===\n")
+exio |> filter(matrix == "Y", year == 2022) |> head(3) |> collect() |> print()
+
+cat("\n=== SAMPLE DATA: F_satellite MATRIX (Environmental) ===\n")
+exio |> filter(matrix == "F_satellite", year == 2022) |> head(3) |> collect() |> print()
+```
